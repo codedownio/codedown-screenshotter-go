@@ -6,8 +6,10 @@ import (
 	"flag"
 	"log"
 	"os"
+	"time"
 
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 )
@@ -31,15 +33,6 @@ func main() {
 		log.Fatal("-url is required")
 	}
 
-	if *cookieDomain == "" {
-		log.Printf("cookieDomain not currently used")
-	}
-
-	headers := make(map[string]interface{})
-	if *cookieName != "" && *cookieValue != "" {
-		headers["Cookie"] = *cookieName + "=" + *cookieValue
-	}
-
 	options := []chromedp.ExecAllocatorOption{}
 	options = append(options, chromedp.DefaultExecAllocatorOptions[:]...)
 	options = append(options, chromedp.DisableGPU)
@@ -56,7 +49,7 @@ func main() {
 	var previewRes bool
 	var buf []byte
 	if err := chromedp.Run(ctx, fullScreenshot(
-		&headers,
+		*cookieName, *cookieValue, *cookieDomain,
 		*url,
 		&previewRes,
 		*quality, &buf),
@@ -71,7 +64,9 @@ func main() {
 }
 
 func fullScreenshot(
-	headers *map[string]interface{},
+	cookieName string,
+	cookieValue string,
+	cookieDomain string,
 
 	urlstr string,
 
@@ -82,8 +77,19 @@ func fullScreenshot(
 ) chromedp.Tasks {
 	var actions chromedp.Tasks
 
-	if len(*headers) > 0 {
-		actions = append(actions, network.Enable(), network.SetExtraHTTPHeaders(network.Headers(*headers)))
+	if cookieName != "" && cookieValue != "" {
+		actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+			expr := cdp.TimeSinceEpoch(time.Now().Add(180 * 24 * time.Hour))
+			err := network.SetCookie(cookieName, cookieValue).
+				WithExpires(&expr).
+				WithDomain(cookieDomain).
+				WithHTTPOnly(true).
+				Do(ctx)
+			if err != nil {
+				return err
+			}
+			return nil
+		}))
 	}
 
 	actions = append(actions, chromedp.Navigate(urlstr))
