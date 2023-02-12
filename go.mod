@@ -1,4 +1,4 @@
-module codedown.io/screenshotter/v1
+module codedown.io/codedown-screenshotter
 
 go 1.17
 
