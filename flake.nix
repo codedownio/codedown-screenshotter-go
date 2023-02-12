@@ -20,6 +20,7 @@
       in rec {
         packages = (rec {
           default = pkgs.callPackage ./. {};
+          dynamic = pkgs.callPackage ./. { static = false; };
         });
       });
 }

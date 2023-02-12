@@ -1,5 +1,7 @@
 { lib
+, stdenv
 , buildGoModule
+, static ? true
 }:
 
 buildGoModule rec {
@@ -14,4 +16,14 @@ buildGoModule rec {
     description = "";
     homepage = "";
   };
+} // lib.optionalAttrs static {
+  CGO_ENABLED = 1;
+
+  buildInputs = [ stdenv.cc.libc.static ];
+
+  ldflags = [
+    "-s" "-w"
+    "-linkmode" "external"
+    "-extldflags" "-static"
+  ];
 }
