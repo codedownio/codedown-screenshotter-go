@@ -15,8 +15,9 @@
 
       in rec {
         packages = (rec {
-          default = pkgs.callPackage ./. {};
+          static = pkgs.callPackage ./. { static = true; };
           dynamic = pkgs.callPackage ./. { static = false; };
+          default = static;
 
           mkScreenshotter = { chromePath }: with pkgs; runCommand "codedown-screenshotter-go" { buildInputs = [makeWrapper]; } ''
             mkdir -p $out/bin

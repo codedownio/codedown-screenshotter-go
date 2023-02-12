@@ -4,7 +4,7 @@
 , static ? true
 }:
 
-buildGoModule rec {
+buildGoModule ({
   pname = "codedown-screenshotter";
   version = "0.1.0";
 
@@ -26,4 +26,4 @@ buildGoModule rec {
     "-linkmode" "external"
     "-extldflags" "-static"
   ];
-}
+})
