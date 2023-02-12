@@ -23,7 +23,7 @@
             mkdir -p $out/bin
 
             makeWrapper ${default}/bin/codedown-screenshotter "$out/bin/codedown-screenshotter" \
-              --add-flags chrome-path "${chromePath}"
+              --add-flags "--chrome-path \"${chromePath}\""
           '';
         });
       });
