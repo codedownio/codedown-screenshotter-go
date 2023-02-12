@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 
@@ -24,12 +23,16 @@ func main() {
 
 	cookieName := flag.String("cookieName", "", "Cookie name")
 	cookieValue := flag.String("cookieValue", "", "Cookie value")
-	// cookieDomain := flag.String("cookieDomain", "", "Cookie domain")
+	cookieDomain := flag.String("cookieDomain", "", "Cookie domain")
 
 	flag.Parse()
 
 	if *url == "" {
 		log.Fatal("-url is required")
+	}
+
+	if *cookieDomain == "" {
+		log.Printf("cookieDomain not currently used")
 	}
 
 	headers := make(map[string]interface{})
