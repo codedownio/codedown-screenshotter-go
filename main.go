@@ -79,9 +79,9 @@ func fullScreenshot(
 
 	if cookieName != "" && cookieValue != "" {
 		actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
-			expr := cdp.TimeSinceEpoch(time.Now().Add(180 * 24 * time.Hour))
+			expires := cdp.TimeSinceEpoch(time.Now().Add(180 * 24 * time.Hour))
 			err := network.SetCookie(cookieName, cookieValue).
-				WithExpires(&expr).
+				WithExpires(&expires).
 				WithDomain(cookieDomain).
 				WithHTTPOnly(true).
 				Do(ctx)
