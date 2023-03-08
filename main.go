@@ -4,9 +4,10 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/cdproto/cdp"
@@ -23,11 +24,19 @@ func main() {
 
 	quality := flag.Int("quality", 95, "PNG quality (0-100)")
 
+	timeoutMilliseconds := flag.Int("timeout-ms", 0, "Timeout in milliseconds. Pass 0 to use no timeout.")
+
 	cookieName := flag.String("cookieName", "", "Cookie name")
 	cookieValue := flag.String("cookieValue", "", "Cookie value")
 	cookieDomain := flag.String("cookieDomain", "", "Cookie domain")
 
+	debug := flag.Bool("debug", false, "Enable debug output")
+
 	flag.Parse()
+
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	if *url == "" {
 		log.Fatal("-url is required")
@@ -52,10 +61,13 @@ func main() {
 		*cookieName, *cookieValue, *cookieDomain,
 		*url,
 		&previewRes,
-		*quality, &buf),
-	); err != nil {
+		*quality,
+		*timeoutMilliseconds,
+		&buf,
+	)); err != nil {
 		log.Fatal(err)
 	}
+
 	if err := os.WriteFile("screenshot.png", buf, 0o644); err != nil {
 		log.Fatal(err)
 	}
@@ -73,6 +85,8 @@ func fullScreenshot(
 	previewRes *bool,
 
 	quality int,
+	timeoutMilliseconds int,
+
 	res *[]byte,
 ) chromedp.Tasks {
 	var actions chromedp.Tasks
@@ -95,7 +109,12 @@ func fullScreenshot(
 	actions = append(actions, chromedp.Navigate(urlstr))
 
 	actions = append(actions, chromedp.Evaluate(`window["previewReady"];`, &previewRes, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
-      return p.WithAwaitPromise(true)
+		var ret = p.WithAwaitPromise(true)
+		if timeoutMilliseconds > 0 {
+			return ret.WithTimeout(runtime.TimeDelta((timeoutMilliseconds)))
+		} else {
+			return ret
+		}
     }))
 
 	actions = append(actions, chromedp.FullScreenshot(res, quality))

@@ -10,7 +10,7 @@ buildGoModule ({
 
   src = ./.;
 
-  vendorHash = "sha256-zecMVEVsYEZJ+lxFF12+GbhX+URtOGktOnC2xMLr+yo=";
+  vendorHash = "sha256-oePl/GpP31Vv2Yj4VYwxYlNOo5fIVVMrW9SVsOowbjA=";
 
   meta = with lib; {
     description = "";
