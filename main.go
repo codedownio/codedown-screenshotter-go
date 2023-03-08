@@ -31,6 +31,7 @@ func main() {
 	cookieDomain := flag.String("cookieDomain", "", "Cookie domain")
 
 	debug := flag.Bool("debug", false, "Enable debug output")
+	debugChrome := flag.Bool("debug-chrome", false, "Enable Chrome debug output")
 
 	flag.Parse()
 
@@ -52,7 +53,14 @@ func main() {
 
 	actx, acancel := chromedp.NewExecAllocator(context.Background(), options...)
 	defer acancel()
-	ctx, cancel := chromedp.NewContext(actx)
+
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if *debugChrome {
+		ctx, cancel = chromedp.NewContext(actx, chromedp.WithDebugf(log.Printf))
+	} else {
+		ctx, cancel = chromedp.NewContext(actx)
+	}
 	defer cancel()
 
 	var previewRes bool
@@ -94,6 +102,7 @@ func fullScreenshot(
 	if cookieName != "" && cookieValue != "" {
 		actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
 			expires := cdp.TimeSinceEpoch(time.Now().Add(180 * 24 * time.Hour))
+			log.Debug("Setting cookie")
 			err := network.SetCookie(cookieName, cookieValue).
 				WithExpires(&expires).
 				WithDomain(cookieDomain).
@@ -106,7 +115,17 @@ func fullScreenshot(
 		}))
 	}
 
+	actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+		log.Debug("Navigating")
+		return nil
+	}))
+
 	actions = append(actions, chromedp.Navigate(urlstr))
+
+	actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+		log.Debug("Waiting for previewReady promise")
+		return nil
+	}))
 
 	actions = append(actions, chromedp.Evaluate(`window["previewReady"];`, &previewRes, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
 		var ret = p.WithAwaitPromise(true)
@@ -116,6 +135,11 @@ func fullScreenshot(
 			return ret
 		}
     }))
+
+	actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+		log.Debug("Taking screenshot")
+		return nil
+	}))
 
 	actions = append(actions, chromedp.FullScreenshot(res, quality))
 
