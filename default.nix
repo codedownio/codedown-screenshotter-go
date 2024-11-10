@@ -19,7 +19,9 @@ buildGoModule ({
 } // lib.optionalAttrs static {
   CGO_ENABLED = 1;
 
-  buildInputs = [ stdenv.cc.libc.static ];
+  buildInputs = [
+    stdenv.cc.libc.static
+  ];
 
   ldflags = [
     "-s" "-w"

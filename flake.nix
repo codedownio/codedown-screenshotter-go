@@ -5,9 +5,7 @@
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
   outputs = { self, nixpkgs, flake-utils }:
-    # flake-utils.lib.eachDefaultSystem (system:
-    # flake-utils.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
-    flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
+    flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [];
 
@@ -15,16 +13,20 @@
 
       in rec {
         packages = (rec {
-          static = pkgs.callPackage ./. { static = true; };
-          dynamic = pkgs.callPackage ./. { static = false; };
-          default = static;
+          screenshotterStatic = pkgs.callPackage ./. { static = true; };
+          screenshotterDynamic = pkgs.callPackage ./. { static = false; };
+          default = screenshotterStatic;
 
-          mkScreenshotter = { chromePath }: with pkgs; runCommand "codedown-screenshotter-go" { buildInputs = [makeWrapper]; } ''
-            mkdir -p $out/bin
+          mkScreenshotter = { chromePath, static ? true }:
+            let
+              screenshotter = if static then screenshotterStatic else screenshotterDynamic;
+            in
+              with pkgs; runCommand "codedown-screenshotter-go" { buildInputs = [makeWrapper]; } ''
+                mkdir -p $out/bin
 
-            makeWrapper ${default}/bin/codedown-screenshotter "$out/bin/codedown-screenshotter" \
-              --add-flags "--chrome-path \"${chromePath}\""
-          '';
+                makeWrapper ${default}/bin/codedown-screenshotter "$out/bin/codedown-screenshotter" \
+                  --add-flags "--chrome-path \"${chromePath}\""
+              '';
         });
       });
 }
