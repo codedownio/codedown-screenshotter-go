@@ -24,7 +24,7 @@
               with pkgs; runCommand "codedown-screenshotter-go" { buildInputs = [makeWrapper]; } ''
                 mkdir -p $out/bin
 
-                makeWrapper ${default}/bin/codedown-screenshotter "$out/bin/codedown-screenshotter" \
+                makeWrapper ${screenshotter}/bin/codedown-screenshotter "$out/bin/codedown-screenshotter" \
                   --add-flags "--chrome-path \"${chromePath}\""
               '';
         });
