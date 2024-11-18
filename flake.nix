@@ -11,7 +11,7 @@
 
         pkgs = import nixpkgs { inherit system overlays; };
 
-      in rec {
+      in {
         packages = (rec {
           screenshotterStatic = pkgs.callPackage ./. { static = true; };
           screenshotterDynamic = pkgs.callPackage ./. { static = false; };
@@ -21,7 +21,10 @@
             let
               screenshotter = if static then screenshotterStatic else screenshotterDynamic;
             in
-              with pkgs; runCommand "codedown-screenshotter-go" { buildInputs = [makeWrapper]; } ''
+              with pkgs; runCommand "codedown-screenshotter-go" {
+                buildInputs = [makeWrapper];
+                inherit (screenshotter) meta version;
+              } ''
                 mkdir -p $out/bin
 
                 makeWrapper ${screenshotter}/bin/codedown-screenshotter "$out/bin/codedown-screenshotter" \

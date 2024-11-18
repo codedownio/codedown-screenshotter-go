@@ -6,13 +6,13 @@
 
 buildGoModule ({
   pname = "codedown-screenshotter";
-  version = "0.1.0";
+  version = "0.1.1";
 
   src = ./.;
 
   vendorHash = "sha256-oePl/GpP31Vv2Yj4VYwxYlNOo5fIVVMrW9SVsOowbjA=";
 
-  meta = with lib; {
+  meta = {
     description = "";
     homepage = "";
   };
