@@ -63,6 +63,8 @@ func main() {
 	debug := flag.Bool("debug", false, "Enable debug output")
 	debugChrome := flag.Bool("debug-chrome", false, "Enable Chrome debug output")
 
+	noHeadless := flag.Bool("no-headless", false, "Pass headless flag to chromedp")
+
 	flag.Parse()
 
 	if *debug {
@@ -79,6 +81,9 @@ func main() {
 	options = append(options, chromedp.WindowSize(*width, *height))
 	if *chromePath != "" {
 		options = append(options, chromedp.ExecPath(*chromePath))
+	}
+	if !*noHeadless {
+		options = append(options, chromedp.Flag("headless", true))
 	}
 
 	actx, acancel := chromedp.NewExecAllocator(context.Background(), options...)
