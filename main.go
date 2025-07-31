@@ -65,6 +65,8 @@ func main() {
 
 	noHeadless := flag.Bool("no-headless", false, "Pass headless flag to chromedp")
 
+	tmpDir := flag.String("tmp-dir", "", "Temporary directory to use for chromedp")
+
 	flag.Parse()
 
 	if *debug {
@@ -84,6 +86,9 @@ func main() {
 	}
 	if !*noHeadless {
 		options = append(options, chromedp.Flag("headless", true))
+	}
+	if *tmpDir != "" {
+		options = append(options, chromedp.UserDataDir(*tmpDir))
 	}
 
 	actx, acancel := chromedp.NewExecAllocator(context.Background(), options...)
