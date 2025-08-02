@@ -67,6 +67,8 @@ func main() {
 
 	tmpDir := flag.String("tmp-dir", "", "Temporary directory to use for chromedp")
 
+	destFile := flag.String("dest-file", "screenshot.png", "Destination file to write")
+
 	flag.Parse()
 
 	if *debug {
@@ -116,7 +118,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := os.WriteFile("screenshot.png", buf, 0o644); err != nil {
+	if err := os.WriteFile(*destFile, buf, 0o644); err != nil {
 		log.Fatal(err)
 	}
 
