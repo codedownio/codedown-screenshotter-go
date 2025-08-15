@@ -46,6 +46,17 @@ var MyExecAllocatorOptions = [...]chromedp.ExecAllocatorOption{
 
 
 func main() {
+	// Filter out "--" from command line arguments before parsing.
+	// This is because we need to do this for reliable parsing when screenshotting
+	// on Electron, and this needs to be compatible with the same command line args.
+	filteredArgs := make([]string, 0, len(os.Args))
+	for _, arg := range os.Args {
+		if arg != "--" {
+			filteredArgs = append(filteredArgs, arg)
+		}
+	}
+	os.Args = filteredArgs
+
 	url := flag.String("url", "", "URL to screenshot")
 	chromePath := flag.String("chrome-path", "", "Path to chrome or headless-shell executable")
 
