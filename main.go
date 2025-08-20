@@ -124,6 +124,8 @@ func main() {
 		&previewRes,
 		*quality,
 		*timeoutMilliseconds,
+		*width,
+		*height,
 		&buf,
 	)); err != nil {
 		log.Fatal(err)
@@ -147,10 +149,14 @@ func fullScreenshot(
 
 	quality int,
 	timeoutMilliseconds int,
+	width int,
+	height int,
 
 	res *[]byte,
 ) chromedp.Tasks {
 	var actions chromedp.Tasks
+
+	actions = append(actions, chromedp.EmulateViewport(int64(width), int64(height)))
 
 	if cookieName != "" && cookieValue != "" {
 		actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
