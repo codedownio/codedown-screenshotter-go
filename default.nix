@@ -17,7 +17,7 @@ buildGoModule ({
     homepage = "";
   };
 } // lib.optionalAttrs static {
-  CGO_ENABLED = 1;
+  env.CGO_ENABLED = 1;
 
   buildInputs = [
     stdenv.cc.libc.static
