@@ -24,6 +24,9 @@
               with pkgs; runCommand "codedown-screenshotter-go" {
                 buildInputs = [makeWrapper];
                 inherit (screenshotter) meta version;
+                passthru = {
+                  unwrapped = screenshotter;
+                };
               } ''
                 mkdir -p $out/bin
 
