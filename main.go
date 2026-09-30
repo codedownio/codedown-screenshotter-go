@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"os"
 	"time"
@@ -79,6 +80,7 @@ func main() {
 	tmpDir := flag.String("tmp-dir", "", "Temporary directory to use for chromedp")
 
 	destFile := flag.String("dest-file", "screenshot.png", "Destination file to write")
+	artifactFile := flag.String("artifact-file", "", "If set, also write the page's preview artifact JSON here. The page supplies it through window.codedownCapturePreview().")
 
 	flag.Parse()
 
@@ -118,6 +120,7 @@ func main() {
 
 	var previewRes bool
 	var buf []byte
+	var artifact string
 	if err := chromedp.Run(ctx, fullScreenshot(
 		*cookieName, *cookieValue, *cookieDomain,
 		*url,
@@ -127,6 +130,8 @@ func main() {
 		*width,
 		*height,
 		&buf,
+		*artifactFile != "",
+		&artifact,
 	)); err != nil {
 		log.Fatal(err)
 	}
@@ -135,7 +140,41 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("Wrote screenshot.png")
+	log.Printf("Wrote %s", *destFile)
+
+	if *artifactFile != "" && !writeArtifact(*artifactFile, artifact) {
+		// The screenshot is already written and still good, so report the artifact failure
+		// through the exit code rather than discarding the run.
+		os.Exit(1)
+	}
+}
+
+// The page reports its artifact as a JSON string, so that a missing hook and a capture that
+// threw are both values rather than evaluation failures that would lose the screenshot.
+func writeArtifact(path string, artifact string) bool {
+	if artifact == "" || artifact == "null" {
+		log.Error("The page did not provide window.codedownCapturePreview; no artifact written")
+		return false
+	}
+
+	var probe struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(artifact), &probe); err != nil {
+		log.Errorf("The page's artifact was not valid JSON: %v", err)
+		return false
+	}
+	if probe.Error != "" {
+		log.Errorf("Preview capture failed in the page: %s", probe.Error)
+		return false
+	}
+
+	if err := os.WriteFile(path, []byte(artifact), 0o644); err != nil {
+		log.Errorf("Could not write %s: %v", path, err)
+		return false
+	}
+	log.Printf("Wrote %s (%d bytes)", path, len(artifact))
+	return true
 }
 
 func fullScreenshot(
@@ -153,6 +192,9 @@ func fullScreenshot(
 	height int,
 
 	res *[]byte,
+
+	wantArtifact bool,
+	artifact *string,
 ) chromedp.Tasks {
 	var actions chromedp.Tasks
 
@@ -194,6 +236,29 @@ func fullScreenshot(
 			return ret
 		}
     }))
+
+	// Before the screenshot: the artifact has to be serialized while the viewport is still the
+	// one that was asked for, and FullScreenshot resizes it.
+	if wantArtifact {
+		actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+			log.Debug("Capturing preview artifact")
+			return nil
+		}))
+
+		actions = append(actions, chromedp.Evaluate(
+			`(window["codedownCapturePreview"] ? window["codedownCapturePreview"]() : Promise.resolve(null))
+			   .then(function (r) { return JSON.stringify(r === undefined ? null : r); },
+			         function (e) { return JSON.stringify({error: String((e && e.stack) || e)}); });`,
+			artifact,
+			func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+				var ret = p.WithAwaitPromise(true)
+				if timeoutMilliseconds > 0 {
+					return ret.WithTimeout(runtime.TimeDelta((timeoutMilliseconds)))
+				} else {
+					return ret
+				}
+			}))
+	}
 
 	actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
 		log.Debug("Taking screenshot")
