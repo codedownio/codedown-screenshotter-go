@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"os"
 	"time"
@@ -106,47 +107,97 @@ func main() {
 		options = append(options, chromedp.UserDataDir(*tmpDir))
 	}
 
+	// Everything that owns the browser lives in a function whose deferred cancels can run.
+	// os.Exit skips defers, so exiting from here would leave Chrome running.
+	if !screenshot(options, screenshotRequest{
+		url:          *url,
+		cookieName:   *cookieName,
+		cookieValue:  *cookieValue,
+		cookieDomain: *cookieDomain,
+		width:        *width,
+		height:       *height,
+		quality:      *quality,
+		timeoutMs:    *timeoutMilliseconds,
+		destFile:     *destFile,
+		artifactFile: *artifactFile,
+		debugChrome:  *debugChrome,
+	}) {
+		os.Exit(1)
+	}
+}
+
+type screenshotRequest struct {
+	url          string
+	cookieName   string
+	cookieValue  string
+	cookieDomain string
+	width        int
+	height       int
+	quality      int
+	timeoutMs    int
+	destFile     string
+	artifactFile string
+	debugChrome  bool
+}
+
+// How much longer than -timeout-ms the run as a whole is allowed to take, so that a page which
+// stalls gets reported by the step that stalled before the overall deadline fires.
+const timeoutSlack = 10 * time.Second
+
+func screenshot(options []chromedp.ExecAllocatorOption, req screenshotRequest) bool {
 	actx, acancel := chromedp.NewExecAllocator(context.Background(), options...)
 	defer acancel()
 
 	var ctx context.Context
 	var cancel context.CancelFunc
-	if *debugChrome {
+	if req.debugChrome {
 		ctx, cancel = chromedp.NewContext(actx, chromedp.WithDebugf(log.Printf))
 	} else {
 		ctx, cancel = chromedp.NewContext(actx)
 	}
 	defer cancel()
 
+	// A page that never resolves previewReady would otherwise keep this process, and the browser
+	// it owns, alive forever: the per-evaluate timeout does not interrupt an awaited promise.
+	if req.timeoutMs > 0 {
+		var tcancel context.CancelFunc
+		ctx, tcancel = context.WithTimeout(ctx, (time.Duration(req.timeoutMs) * time.Millisecond) + timeoutSlack)
+		defer tcancel()
+	}
+
 	var previewRes bool
 	var buf []byte
 	var artifact string
 	if err := chromedp.Run(ctx, fullScreenshot(
-		*cookieName, *cookieValue, *cookieDomain,
-		*url,
+		req.cookieName, req.cookieValue, req.cookieDomain,
+		req.url,
 		&previewRes,
-		*quality,
-		*timeoutMilliseconds,
-		*width,
-		*height,
+		req.quality,
+		req.timeoutMs,
+		req.width,
+		req.height,
 		&buf,
-		*artifactFile != "",
+		req.artifactFile != "",
 		&artifact,
 	)); err != nil {
-		log.Fatal(err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Errorf("Timed out after %dms waiting for %s", req.timeoutMs, req.url)
+		} else {
+			log.Error(err)
+		}
+		return false
 	}
 
-	if err := os.WriteFile(*destFile, buf, 0o644); err != nil {
-		log.Fatal(err)
+	if err := os.WriteFile(req.destFile, buf, 0o644); err != nil {
+		log.Error(err)
+		return false
 	}
 
-	log.Printf("Wrote %s", *destFile)
+	log.Printf("Wrote %s", req.destFile)
 
-	if *artifactFile != "" && !writeArtifact(*artifactFile, artifact) {
-		// The screenshot is already written and still good, so report the artifact failure
-		// through the exit code rather than discarding the run.
-		os.Exit(1)
-	}
+	// The screenshot is already written and still good, so an artifact failure is reported
+	// through the exit code rather than discarding the run.
+	return req.artifactFile == "" || writeArtifact(req.artifactFile, artifact)
 }
 
 // The page reports its artifact as a JSON string, so that a missing hook and a capture that
