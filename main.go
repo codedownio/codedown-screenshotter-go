@@ -7,6 +7,8 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -14,6 +16,7 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 )
 
@@ -65,7 +68,7 @@ func main() {
 	width := flag.Int("width", 850, "Viewport width")
 	height := flag.Int("height", 1000, "Viewport height")
 
-	quality := flag.Int("quality", 95, "PNG quality (0-100)")
+	quality := flag.Int("quality", 95, "JPEG quality (0-100), used only when -dest-file names a .jpg or .jpeg")
 
 	timeoutMilliseconds := flag.Int("timeout-ms", 0, "Timeout in milliseconds. Pass 0 to use no timeout.")
 
@@ -172,6 +175,7 @@ func screenshot(options []chromedp.ExecAllocatorOption, req screenshotRequest) b
 		req.cookieName, req.cookieValue, req.cookieDomain,
 		req.url,
 		&previewRes,
+		req.destFile,
 		req.quality,
 		req.timeoutMs,
 		req.width,
@@ -198,6 +202,32 @@ func screenshot(options []chromedp.ExecAllocatorOption, req screenshotRequest) b
 	// The screenshot is already written and still good, so an artifact failure is reported
 	// through the exit code rather than discarding the run.
 	return req.artifactFile == "" || writeArtifact(req.artifactFile, artifact)
+}
+
+// Chooses the image format from the destination's extension, rather than from the compression
+// quality as chromedp's FullScreenshot does. That coupling meant a -quality below 100 silently
+// produced a JPEG, which callers then stored and served as a PNG.
+func captureScreenshot(destFile string, quality int, res *[]byte) chromedp.Action {
+	format := page.CaptureScreenshotFormatPng
+	switch strings.ToLower(filepath.Ext(destFile)) {
+	case ".jpg", ".jpeg":
+		format = page.CaptureScreenshotFormatJpeg
+	}
+
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		log.Debugf("Capturing %s screenshot", format)
+		buf, err := page.CaptureScreenshot().
+			WithCaptureBeyondViewport(true).
+			WithFromSurface(true).
+			WithFormat(format).
+			WithQuality(int64(quality)).
+			Do(ctx)
+		if err != nil {
+			return err
+		}
+		*res = buf
+		return nil
+	})
 }
 
 // The page reports its artifact as a JSON string, so that a missing hook and a capture that
@@ -237,6 +267,7 @@ func fullScreenshot(
 
 	previewRes *bool,
 
+	destFile string,
 	quality int,
 	timeoutMilliseconds int,
 	width int,
@@ -316,7 +347,7 @@ func fullScreenshot(
 		return nil
 	}))
 
-	actions = append(actions, chromedp.FullScreenshot(res, quality))
+	actions = append(actions, captureScreenshot(destFile, quality, res))
 
 	return actions
 }
