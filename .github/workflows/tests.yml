@@ -3,22 +3,32 @@ name: tests
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'noci')"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: cachix/install-nix-action@v31
         with:
-          go-version: "1.24"
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
-      - run: go vet ./...
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      # Resolved up front, and a failure here is the point: the tests skip when they cannot find
-      # a browser, so without this a runner that had none would report a green run that tested
-      # nothing.
+      - name: Build
+        run: nix build .#default -L
+
+      # The dev shell's browser would be a Chromium build from source here, so CI uses the one
+      # on the runner. Setting it explicitly also means a runner without a browser fails rather
+      # than skipping every test and reporting a green run.
       - name: Locate a browser
         run: |
           path=$(command -v google-chrome || command -v chromium || command -v chrome || true)
@@ -29,4 +39,5 @@ jobs:
           echo "Using $path"
           echo "CODEDOWN_TEST_CHROME=$path" >> "$GITHUB_ENV"
 
-      - run: go test ./... -v
+      - name: Test
+        run: nix develop .#ci -c go test ./... -v

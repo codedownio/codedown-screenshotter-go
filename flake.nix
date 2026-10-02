@@ -24,6 +24,12 @@
           packages = [pkgs.go browser];
         };
 
+        # The browser above is built from source and is in no cache a hosted runner can reach,
+        # so CI takes the toolchain from here and its browser from the runner image.
+        devShells.ci = pkgs.mkShell {
+          packages = [pkgs.go];
+        };
+
         packages = (rec {
           screenshotterStatic = pkgs.callPackage ./. { static = true; };
           screenshotterDynamic = pkgs.callPackage ./. { static = false; };
