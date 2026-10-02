@@ -1,0 +1,32 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - run: go vet ./...
+
+      # Resolved up front, and a failure here is the point: the tests skip when they cannot find
+      # a browser, so without this a runner that had none would report a green run that tested
+      # nothing.
+      - name: Locate a browser
+        run: |
+          path=$(command -v google-chrome || command -v chromium || command -v chrome || true)
+          if [ -z "$path" ]; then
+            echo "no browser on this runner; the tests would all skip" >&2
+            exit 1
+          fi
+          echo "Using $path"
+          echo "CODEDOWN_TEST_CHROME=$path" >> "$GITHUB_ENV"
+
+      - run: go test ./... -v
