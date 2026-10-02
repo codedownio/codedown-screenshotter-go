@@ -41,7 +41,9 @@ func servePage(t *testing.T, body string) string {
 	return server.URL
 }
 
-// The same options main builds, so a test covers the configuration that actually ships.
+// The same options main builds, so a test covers the configuration that actually ships. No
+// user data directory: chromedp makes and removes its own, and a t.TempDir here fails the test
+// when the browser is still writing to it as the cleanup runs.
 func testOptions(t *testing.T) []chromedp.ExecAllocatorOption {
 	t.Helper()
 	options := []chromedp.ExecAllocatorOption{}
@@ -51,7 +53,6 @@ func testOptions(t *testing.T) []chromedp.ExecAllocatorOption {
 		chromedp.WindowSize(680, 800),
 		chromedp.ExecPath(browserOrSkip(t)),
 		chromedp.Flag("headless", true),
-		chromedp.UserDataDir(t.TempDir()),
 	)
 	return options
 }
