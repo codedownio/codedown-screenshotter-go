@@ -31,10 +31,27 @@
         "type": "github"
       }
     },
+    "nixpkgs-browser": {
+      "locked": {
+        "lastModified": 1744945275,
+        "narHash": "sha256-KF/0h00KAsBdxwRbq3qcInX3hzUM/wRSd7FVrrqBaTA=",
+        "owner": "codedownio",
+        "repo": "nixpkgs",
+        "rev": "f585544dbc30454284cba1da3f93bec26c73d076",
+        "type": "github"
+      },
+      "original": {
+        "owner": "codedownio",
+        "ref": "release-24.11-codedown-apr17-2025",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-browser": "nixpkgs-browser"
       }
     }
   },
