@@ -57,6 +57,7 @@ func testOptions(t *testing.T) []chromedp.ExecAllocatorOption {
 	return options
 }
 
+// An empty destName asks for no screenshot, the way the templates do.
 func request(t *testing.T, url string, timeoutMs int, destName string, wantArtifact bool) screenshotRequest {
 	t.Helper()
 	dir := t.TempDir()
@@ -66,7 +67,9 @@ func request(t *testing.T, url string, timeoutMs int, destName string, wantArtif
 		height:    800,
 		quality:   95,
 		timeoutMs: timeoutMs,
-		destFile:  filepath.Join(dir, destName),
+	}
+	if destName != "" {
+		req.destFile = filepath.Join(dir, destName)
 	}
 	if wantArtifact {
 		req.artifactFile = filepath.Join(dir, "artifact.json")
@@ -134,6 +137,29 @@ func TestReadyPageWritesScreenshotAndArtifact(t *testing.T) {
 	}
 	if !strings.Contains(string(artifact), `"html":"<p>hello</p>"`) {
 		t.Errorf("the artifact is not what the page returned: %s", artifact)
+	}
+}
+
+func TestArtifactOnlyRunTakesNoScreenshot(t *testing.T) {
+	options := testOptions(t)
+	req := request(t, servePage(t, readyPage), 30000, "", true)
+
+	if !screenshot(options, req) {
+		t.Fatal("expected the run to succeed")
+	}
+
+	artifact, err := os.ReadFile(req.artifactFile)
+	if err != nil {
+		t.Fatalf("reading the artifact: %v", err)
+	}
+	if !strings.Contains(string(artifact), `"html":"<p>hello</p>"`) {
+		t.Errorf("the artifact is not what the page returned: %s", artifact)
+	}
+
+	if entries, err := os.ReadDir(filepath.Dir(req.artifactFile)); err != nil {
+		t.Fatalf("listing the output directory: %v", err)
+	} else if len(entries) != 1 {
+		t.Errorf("expected the artifact alone, got %v", entries)
 	}
 }
 

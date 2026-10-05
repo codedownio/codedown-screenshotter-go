@@ -83,8 +83,8 @@ func main() {
 
 	tmpDir := flag.String("tmp-dir", "", "Temporary directory to use for chromedp")
 
-	destFile := flag.String("dest-file", "screenshot.png", "Destination file to write")
-	artifactFile := flag.String("artifact-file", "", "If set, also write the page's preview artifact JSON here. The page supplies it through window.codedownCapturePreview().")
+	destFile := flag.String("dest-file", "", "If set, write a screenshot image here.")
+	artifactFile := flag.String("artifact-file", "", "If set, write the page's preview artifact JSON here. The page supplies it through window.codedownCapturePreview().")
 
 	flag.Parse()
 
@@ -94,6 +94,10 @@ func main() {
 
 	if *url == "" {
 		log.Fatal("-url is required")
+	}
+
+	if *destFile == "" && *artifactFile == "" {
+		log.Fatal("one of -dest-file or -artifact-file is required")
 	}
 
 	options := []chromedp.ExecAllocatorOption{}
@@ -192,12 +196,14 @@ func screenshot(options []chromedp.ExecAllocatorOption, req screenshotRequest) b
 		return false
 	}
 
-	if err := os.WriteFile(req.destFile, buf, 0o644); err != nil {
-		log.Error(err)
-		return false
-	}
+	if req.destFile != "" {
+		if err := os.WriteFile(req.destFile, buf, 0o644); err != nil {
+			log.Error(err)
+			return false
+		}
 
-	log.Printf("Wrote %s", req.destFile)
+		log.Printf("Wrote %s", req.destFile)
+	}
 
 	// The screenshot is already written and still good, so an artifact failure is reported
 	// through the exit code rather than discarding the run.
@@ -342,12 +348,14 @@ func fullScreenshot(
 			}))
 	}
 
-	actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
-		log.Debug("Taking screenshot")
-		return nil
-	}))
+	if destFile != "" {
+		actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+			log.Debug("Taking screenshot")
+			return nil
+		}))
 
-	actions = append(actions, captureScreenshot(destFile, quality, res))
+		actions = append(actions, captureScreenshot(destFile, quality, res))
+	}
 
 	return actions
 }
