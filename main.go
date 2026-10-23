@@ -50,6 +50,18 @@ var MyExecAllocatorOptions = [...]chromedp.ExecAllocatorOption{
 }
 
 
+// Where the cookie value is read from in preference to -cookieValue.
+const cookieValueEnvVar = "CODEDOWN_SCREENSHOTTER_COOKIE_VALUE"
+
+// resolveCookieValue takes the environment's value when it has one, so a caller can hand over the
+// cookie without putting it in this process's arguments.
+func resolveCookieValue(flagValue string, envValue string) string {
+	if envValue != "" {
+		return envValue
+	}
+	return flagValue
+}
+
 func main() {
 	// Filter out "--" from command line arguments before parsing.
 	// This is because we need to do this for reliable parsing when screenshotting
@@ -73,7 +85,7 @@ func main() {
 	timeoutMilliseconds := flag.Int("timeout-ms", 0, "Timeout in milliseconds. Pass 0 to use no timeout.")
 
 	cookieName := flag.String("cookieName", "", "Cookie name")
-	cookieValue := flag.String("cookieValue", "", "Cookie value")
+	cookieValue := flag.String("cookieValue", "", "Cookie value. "+cookieValueEnvVar+" takes precedence, and keeps the value out of this process's arguments, where anything able to read /proc can see it.")
 	cookieDomain := flag.String("cookieDomain", "", "Cookie domain")
 
 	debug := flag.Bool("debug", false, "Enable debug output")
@@ -87,6 +99,8 @@ func main() {
 	artifactFile := flag.String("artifact-file", "", "If set, write the page's preview artifact JSON here. The page supplies it through window.codedownCapturePreview().")
 
 	flag.Parse()
+
+	*cookieValue = resolveCookieValue(*cookieValue, os.Getenv(cookieValueEnvVar))
 
 	if *debug {
 		log.SetLevel(log.DebugLevel)

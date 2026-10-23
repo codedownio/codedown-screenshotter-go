@@ -199,3 +199,12 @@ func TestDestinationExtensionChoosesTheFormat(t *testing.T) {
 		t.Errorf("a .jpg destination did not get a JPEG: % x", image[:8])
 	}
 }
+
+func TestTheEnvironmentsCookieValueWinsOverTheFlags(t *testing.T) {
+	if got := resolveCookieValue("from-flag", "from-env"); got != "from-env" {
+		t.Errorf("wanted the environment's value, got %q", got)
+	}
+	if got := resolveCookieValue("from-flag", ""); got != "from-flag" {
+		t.Errorf("wanted the flag's value when the environment has none, got %q", got)
+	}
+}
